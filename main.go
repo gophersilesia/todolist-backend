@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,5 +10,6 @@ import (
 
 func main() {
 	rt := server.RegisterHandlers()
+	fmt.Println("Running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", rt))
 }

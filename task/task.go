@@ -1,76 +1,96 @@
 package task
 
-import "github.com/gogits/gogs/modules/uuid"
+import "errors"
+
+var (
+	errItemNotFound = errors.New("The given item was not found")
+)
 
 // Task type
 type Task struct {
-	ID        string `json:"id"`
+	ID        int64  `json:"id"`
 	Label     string `json:"label"`
 	Completed bool   `json:"completed"`
 }
 
-// Tasks type
-type Tasks map[string]*Task
+// TaskManager manages a list of tasks in memory.
+type TaskManager struct {
+	tasks  []*Task
+	lastID int64
+}
 
-// All returns the list of all the Tasks
-func (t Tasks) All() []*Task {
-	items := []*Task{}
-	for _, item := range t {
-		items = append(items, item)
+// NewTaskManager returns an empty TaskManager.
+func NewTaskManager() *TaskManager {
+	return &TaskManager{}
+}
+
+// Save saves the given Task in the TaskManager.
+func (m *TaskManager) Save(task *Task) (*Task, error) {
+	if task.ID == 0 {
+		m.lastID++
+		task.ID = m.lastID
+		m.tasks = append(m.tasks, cloneTask(task))
+		return task, nil
 	}
-	return items
-}
 
-// Find finds the task in the map
-func (t Tasks) Find(ID string) *Task {
-	if item, found := t[ID]; found {
-		return item
-	}
-	return nil
-}
-
-// Create creates a new task
-func (t Tasks) Create(item Task) *Task {
-	item.ID = newID()
-	t[item.ID] = &item
-	return &item
-}
-
-// Update updates a task
-func (t Tasks) Update(ID string, updatedItem Task) *Task {
-	if item := t.Find(ID); item != nil {
-		return item.update(updatedItem)
-	}
-	return nil
-}
-
-// DeleteAll deletes all tasks
-func (t Tasks) DeleteAll() string {
-	for k := range t {
-		delete(t, k)
-	}
-	return ""
-}
-
-// Delete deletes a single task
-func (t Tasks) Delete(ID string) string {
-	for k := range t {
-		if k == ID {
-			delete(t, k)
+	for i, t := range m.tasks {
+		if t.ID == task.ID {
+			m.tasks[i] = cloneTask(task)
+			return m.tasks[i], nil
 		}
 	}
-	return ""
+
+	return nil, errItemNotFound
 }
 
-// newID generates a unique ID for the task
-func newID() string {
-	id := uuid.NewV4()
-	return id.String()
+// cloneTask creates and returns a deep copy of the given Task.
+func cloneTask(t *Task) *Task {
+	c := *t
+	return &c
 }
 
-// Internal task update
-func (i *Task) update(item Task) *Task {
-	i.Label = item.Label
-	i.Completed = item.Completed
-	return i
+// All returns the list of all the Tasks in the TaskManager.
+func (m *TaskManager) All() []*Task {
+	return m.tasks
+}
+
+// Find returns the Task with the given id in the TaskManager and a boolean
+// indicating if the id was found.
+func (m *TaskManager) Find(ID int64) (*Task, error) {
+	for _, t := range m.tasks {
+		if t.ID == ID {
+			return t, nil
+		}
+	}
+	return nil, errItemNotFound
+}
+
+func (m *TaskManager) Delete(ID int64) {
+	for i, tsk := range m.tasks {
+		if tsk.ID == ID {
+			m.tasks = append(m.tasks[:i], m.tasks[i+1:]...)
+			continue
+		}
+	}
+}
+
+func (m *TaskManager) DeleteAll() {
+	m.tasks = []*Task{}
+}
+
+func (m *TaskManager) Patch(ID int64, prop string, val interface{}) error {
+	tsk, err := m.Find(ID)
+	if err != nil {
+		return err
+	}
+
+	switch prop {
+	case "label":
+		tsk.Label = val.(string)
+		break
+	case "completed":
+		tsk.Completed = val.(bool)
+	}
+
+	return nil
 }
