@@ -114,6 +114,9 @@ func DeleteTasks(w http.ResponseWriter, req *http.Request, p httprouter.Params) 
 // handleSuccess handles the response for each endpoint.
 // It follows the JSEND standard for JSON response.
 // See https://labs.omniti.com/labs/jsend
+// handleOutput handles the response for each endpoint.
+// It follows the JSEND standard for JSON response.
+// See https://labs.omniti.com/labs/jsend
 func handleSuccess(w http.ResponseWriter, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -123,9 +126,18 @@ func handleSuccess(w http.ResponseWriter, code int, data interface{}) {
 		success = true
 	}
 
-	res := map[string]interface{}{"success": success}
+	// JSend has three possible statuses: success, fail and error
+	// In case of error, there is no data sent, only an error message.
+	status := "success"
+	msgType := "data"
+	if !success {
+		status = "error"
+		msgType = "message"
+	}
+
+	res := map[string]interface{}{"status": status}
 	if data != nil {
-		res["data"] = data
+		res[msgType] = data
 	}
 
 	json.NewEncoder(w).Encode(res)
