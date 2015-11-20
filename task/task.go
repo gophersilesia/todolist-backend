@@ -87,7 +87,6 @@ func (m *TaskManager) Patch(ID int64, prop string, val interface{}) error {
 	switch prop {
 	case "label":
 		tsk.Label = val.(string)
-		break
 	case "completed":
 		tsk.Completed = val.(bool)
 	}
